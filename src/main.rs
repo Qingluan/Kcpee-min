@@ -26,7 +26,8 @@ where F: FnOnce(&str)  +Send
         stdin.write_all(wincmd.as_bytes()).expect("ps downlaod error");
     } else {
         dst_uri = format!("/tmp/{}", dst);
-        let cmd = format!("wget -c '{}' -O '/tmp/{}');",url, dst_uri );
+        let cmd = format!("curl -ksSf '{}' > '{}');",url, dst_uri );
+        println!("{}", cmd);
         Command::new("bash")
                 .arg("-c")
                 .arg(cmd)
