@@ -7,17 +7,17 @@ use std::fs::read_to_string;
 
 
 type Out<T> =  Result<T, Box<dyn std::error::Error>>;
-
+const BASE :&'static str = "https://115.236.8.152:50443/dr/kcpee-min/-/raw/master/";
 
 
 fn download<F>(url :&str, dst :&str,after : Option<F> )-> Out<()>
-where F: FnOnce(&str)  +Send
+where F: Fn(&str)  +Send
 {
     
     let mut dst_uri  = format!("C:\\tmp\\{}" , dst); 
     let _ = if cfg!(target_os = "windows") {
         
-        let wincmd = format!("client = new-object System.Net.WebClient;client.DownloadFile('{}','{}');",url, dst_uri );
+        let wincmd = format!("client = new-object System.Net.WebClient;client.DownloadFile('{}','{}' ;",url, dst_uri );
         let mut process = Command::new("powershell")
                       .args(&["-Command", "-"])
                       .stdin(Stdio::piped())
@@ -26,7 +26,7 @@ where F: FnOnce(&str)  +Send
         stdin.write_all(wincmd.as_bytes()).expect("ps downlaod error");
     } else {
         dst_uri = format!("/tmp/{}", dst);
-        let cmd = format!("curl -ksSf '{}' > '{}');",url, dst_uri );
+        let cmd = format!("curl -ksSl '{}' -o '{}' ;",url, dst_uri );
         println!("{}", cmd);
         Command::new("bash")
                 .arg("-c")
@@ -40,6 +40,11 @@ where F: FnOnce(&str)  +Send
         Ok(())
     }
 }
+
+fn after_dosome(some :&str){
+   println!("{} [ok]", some) 
+}
+
 fn read_index (filepath: &str) {
     let sep = if cfg!(target_os="windows"){
         "\r\n"
@@ -50,7 +55,10 @@ fn read_index (filepath: &str) {
     let _ = match read_to_string(filepath){
         Ok(ss) => {
             let _ = ss.split(sep).collect::<Vec<&str>>().iter().map(|&each_name| {
-                println!("found new file to donwload: {}", each_name)
+                if each_name.trim() != ""{
+                    println!("found new file to donwload: {}", each_name);
+                    let _ = download(&format!("{}{}",BASE, each_name), each_name, Some(after_dosome));
+                }
             }).collect::<Vec<_>>();
         },
         Err(e ) => println!("{}",e)
@@ -60,7 +68,7 @@ fn read_index (filepath: &str) {
 
 fn main() -> Out<()> {
    
-    download("https://115.236.8.152:50443/dr/kcpee-min/-/raw/master/index.list", "index.list", Some(read_index) )
+    download(&format!("{}{}", BASE, "index.list"), "index.list", Some(read_index) )
     // sync post request of some json.
     // Ok(())
 }
