@@ -25,7 +25,7 @@ where
     let dst_uri = dst_path.to_str().expect("no").to_string();
     let _ = if cfg!(target_os = "windows") {
         let wincmd = format!(
-            "client = new-object System.Net.WebClient;client.DownloadFile('{}','{}' ;",
+            "$client = new-object System.Net.WebClient;$client.DownloadFile('{}','{}') ;",
             url, dst_uri
         );
         let mut process = Command::new("powershell")
