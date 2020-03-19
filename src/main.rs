@@ -9,7 +9,7 @@ use std::str;
 
 
 type Out<T> = Result<T, Box<dyn std::error::Error>>;
-const BASE: &'static str = "https://115.236.8.152:50443/dr/kcpee-min/-/raw/master/";
+const BASE: &'static str = "https://raw.githubusercontent.com/Qingluan/Kcpee-min/master/";
 lazy_static!{
     static ref TEMP_DIR: PathBuf = env::temp_dir();
 }
