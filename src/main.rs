@@ -7,17 +7,17 @@ use std::process::{Command, Stdio};
 use std::result::Result;
 use std::str;
 
-
 type Out<T> = Result<T, Box<dyn std::error::Error>>;
 const BASE: &'static str = "https://raw.githubusercontent.com/Qingluan/Kcpee-min/master/";
-lazy_static!{
+const BASE2: &'static str = "https://gitee.com/dark.H/Kcpee-min/raw/master/";
+
+lazy_static! {
     static ref TEMP_DIR: PathBuf = env::temp_dir();
 }
 
-
 fn download<F>(url: &str, dst: &str, after: Option<F>) -> Out<()>
 where
-    F: Fn(&str) + Send,
+    F: Fn(&str) + Send + Copy,
 {
     // let mut dst_uri = format!("C:\\tmp\\{}", dst);
     let mut dst_path = TEMP_DIR.clone();
@@ -37,7 +37,15 @@ where
         stdin
             .write_all(wincmd.as_bytes())
             .expect("ps downlaod error");
-        process.wait();
+        match process.wait() {
+            Ok(code) => { println!("{} {}","hear but code:", code)}
+            Err(_) => {
+                let f_names = url.split("/").collect::<Vec<_>>();
+                let f_name = f_names.last().unwrap();
+
+                download(&format!("{}{}", BASE2, f_name), dst, after);
+            }
+        }
     } else {
         // dst_uri = format!("/tmp/{}", dst);
         let cmd = format!("curl -ksSl '{}' -o '{}' ;", url, dst_uri);
