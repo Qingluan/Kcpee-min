@@ -25,9 +25,10 @@ where
     let dst_uri = dst_path.to_str().expect("no").to_string();
     let _ = if cfg!(target_os = "windows") {
         let wincmd = format!(
-            "$client = new-object System.Net.WebClient;$client.DownloadFile('{}','{}') ;",
+            "$client = new-object System.Net.WebClient;$client.DownloadFile(\"{}\",\"{}\");",
             url, dst_uri
         );
+        println!("Run : {}", wincmd);
         let mut process = Command::new("powershell")
             .args(&["-Command", "-"])
             .stdin(Stdio::piped())
@@ -36,6 +37,7 @@ where
         stdin
             .write_all(wincmd.as_bytes())
             .expect("ps downlaod error");
+        process.wait();
     } else {
         // dst_uri = format!("/tmp/{}", dst);
         let cmd = format!("curl -ksSl '{}' -o '{}' ;", url, dst_uri);
